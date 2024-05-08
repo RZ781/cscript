@@ -1,0 +1,15 @@
+test
+5 
+newline <builtin print> void
+-10
+true
+false
+true
+false
+true
+1
+hello world
+1 1
+1 0
+0 1
+0 0
