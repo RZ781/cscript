@@ -18,7 +18,7 @@ const char *token_names[] = {
 	"binary operator"
 };
 
-void lex_inner(lexer_t* lexer) {
+void lex_inner(Lexer* lexer) {
 	FILE* f = lexer->f;
 	char* buffer = lexer->peek_data;
 	fscanf(f, " ");
@@ -67,7 +67,7 @@ void lex_inner(lexer_t* lexer) {
 			c = fgetc(f);
 			if (c == EOF) {
 				fprintf(stderr, "unexpected eof\n");
-				exit(-1);
+				abort();
 			} else if (c == '"') {
 				break;
 			} else if (c == '\\') {
@@ -86,17 +86,17 @@ void lex_inner(lexer_t* lexer) {
 	lexer->peek_type = c;
 }
 
-lexer_t lexer_new(FILE* f) {
-	lexer_t lexer;
+Lexer lexer_new(FILE* f) {
+	Lexer lexer;
 	lexer.f = f;
 	lexer.next = NULL;
 	lex_inner(&lexer);
 	return lexer;
 }
 
-char lex(lexer_t* lexer, char* buffer, int size) {
+char lex(Lexer* lexer, char* buffer, int size) {
 	char p = lexer->peek_type;
-	lexer_t* next = lexer->next;
+	Lexer* next = lexer->next;
 	strncpy(buffer, lexer->peek_data, size);
 	if (next) {
 		*lexer = *next;
@@ -107,14 +107,14 @@ char lex(lexer_t* lexer, char* buffer, int size) {
 	return p;
 }
 
-void unlex(lexer_t* lexer, char type, char* buffer) {
-	lexer_t* next = malloc(sizeof(lexer_t));
+void unlex(Lexer* lexer, char type, char* buffer) {
+	Lexer* next = malloc(sizeof(Lexer));
 	*next = *lexer;
 	lexer->next = next;
 	lexer->peek_type = type;
 	strncpy(lexer->peek_data, buffer, 256);
 }
 
-char peek(lexer_t* lexer) {
+char peek(Lexer* lexer) {
 	return lexer->peek_type;
 }

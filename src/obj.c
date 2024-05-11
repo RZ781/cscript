@@ -5,41 +5,41 @@
 #include <stdarg.h>
 #include "obj.h"
 
-obj_move_t int_new(long i) {
-	obj_t obj;
+ObjMove int_new(long i) {
+	Obj obj;
 	obj.type = OBJ_INT;
 	obj.data.i = i;
 	return MOVE(obj);
 }
 
-obj_move_t str_new(const char* s) {
-	obj_t obj;
+ObjMove str_new(const char* s) {
+	Obj obj;
 	obj.type = OBJ_STR;
 	obj.data.s = malloc(strlen(s) + 1);
 	strcpy(obj.data.s, s);
 	return MOVE(obj);
 }
 
-obj_move_t builtin_new(obj_move_t (*f)(int, obj_ref_t*), const char* name) {
-	obj_t obj;
+ObjMove builtin_new(ObjMove (*f)(int, ObjRef*), const char* name) {
+	Obj obj;
 	obj.type = OBJ_BUILTIN;
 	obj.data.b.f = f;
 	obj.data.b.name = name;
 	return MOVE(obj);
 }
 
-obj_move_t void_new(void) {
-	obj_t obj;
+ObjMove void_new(void) {
+	Obj obj;
 	obj.type = OBJ_VOID;
 	return MOVE(obj);
 }
 
-obj_move_t error_new(int type, const char* format, ...) {
+ObjMove error_new(int type, const char* format, ...) {
 	if (!IS_ERROR(type)) {
 		fprintf(stderr, "error must have an error code, got code %i\n", type);
-		exit(-1);
+		abort();
 	}
-	obj_t obj;
+	Obj obj;
 	obj.type = type;
 	obj.data.s = malloc(256);
 	va_list args;
@@ -49,7 +49,7 @@ obj_move_t error_new(int type, const char* format, ...) {
 	return MOVE(obj);
 }
 
-char* obj_to_str(obj_ref_t obj) {
+char* obj_to_str(ObjRef obj) {
 	switch (TYPE(obj)) {
 		case OBJ_INT:
 		{
@@ -76,11 +76,11 @@ char* obj_to_str(obj_ref_t obj) {
 				return s;
 			}
 			fprintf(stderr, "unknown type in obj_to_str\n");
-			exit(-1);
+			abort();
 	}
 }
 
-bool obj_to_bool(obj_ref_t obj) {
+bool obj_to_bool(ObjRef obj) {
 	switch (TYPE(obj)) {
 		case OBJ_INT:
 			return DATA(obj).i != 0;
@@ -90,25 +90,25 @@ bool obj_to_bool(obj_ref_t obj) {
 			return true;
 		default:
 			fprintf(stderr, "unknown type in obj_to_bool\n");
-			exit(-1);
+			abort();
 	}
 }
 
-obj_move_t obj_call(obj_ref_t f, int n, obj_ref_t* args) {
+ObjMove obj_call(ObjRef f, int n, ObjRef* args) {
 	switch (TYPE(f)) {
 		case OBJ_BUILTIN:
 			return DATA(f).b.f(n, args);
 		default: {
 			char* name = obj_to_str(f);
-			obj_t error = GET(error_new(OBJ_ERROR_TYPE, "can't call object %s", name));
+			Obj error = GET(error_new(OBJ_ERROR_TYPE, "can't call object %s", name));
 			free(name);
 			return MOVE(error);
 		}
 	}
 }
 
-void obj_free(obj_move_t obj_move) {
-	obj_t obj = GET(obj_move);
+void obj_free(ObjMove obj_move) {
+	Obj obj = GET(obj_move);
 	switch (obj.type) {
 		case OBJ_INT: case OBJ_BUILTIN: case OBJ_MOVED: case OBJ_VOID:
 			break;
@@ -118,16 +118,12 @@ void obj_free(obj_move_t obj_move) {
 				break;
 			}
 			fprintf(stderr, "unknown type in obj_free\n");
-			exit(-1);
+			abort();
 	}
 }
 
-int segfault(long x) {
-	return *(int*) x;
-}
-
-obj_move_t obj_copy(obj_ref_t obj) {
-	obj_move_t ret;
+ObjMove obj_copy(ObjRef obj) {
+	ObjMove ret;
 	switch (TYPE(obj)) {
 		case OBJ_INT:
 			ret = int_new(DATA(obj).i);
@@ -144,19 +140,17 @@ obj_move_t obj_copy(obj_ref_t obj) {
 				break;
 			}
 			fprintf(stderr, "unknown object in obj_copy\n");
-			segfault(0);
-			exit(-1);
+			abort();
 	}
 	return ret;
 }
-int f(long i) {return *(int*)i;}
-obj_move_t obj_move(obj_t* obj) {
+
+ObjMove obj_move(Obj* obj) {
 	if (obj->type == OBJ_MOVED) {
 		fprintf(stderr, "object moved twice\n");
-		f(0);
-		exit(-1);
+		abort();
 	}
-	obj_move_t obj_move = {*obj};
+	ObjMove obj_move = {*obj};
 	obj->type = OBJ_MOVED;
 	return obj_move;
 }
