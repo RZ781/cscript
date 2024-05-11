@@ -4,22 +4,22 @@
 #include <stdio.h>
 #include "lexer.h"
 
-typedef struct expr_t expr_t;
-typedef struct stmt_t stmt_t;
+typedef struct Expr Expr;
+typedef struct Stmt Stmt;
 
 typedef struct {
-	expr_t* f;
+	Expr* f;
 	int n_args;
-	expr_t* args;
-} func_call_t;
+	Expr* args;
+} FuncCallExpr;
 
 typedef struct {
 	char op;
-	expr_t* l;
-	expr_t* r;
-} op_t;
+	Expr* l;
+	Expr* r;
+} OpExpr;
 
-struct expr_t {
+struct Expr {
 	enum {
 		EXPR_STR,
 		EXPR_INT,
@@ -30,28 +30,28 @@ struct expr_t {
 	} type;
 	union {
 		char* s;
-		func_call_t call;
-		op_t op;
+		FuncCallExpr call;
+		OpExpr op;
 	} data;
 };
 
 typedef struct {
 	int n_stmts;
-	stmt_t* stmts;
-} block_t;
+	Stmt* stmts;
+} BlockStmt;
 
 typedef struct {
-	expr_t cond;
-	stmt_t* if_path;
-	stmt_t* else_path;
-} if_t;
+	Expr cond;
+	Stmt* if_path;
+	Stmt* else_path;
+} IfStmt;
 
 typedef struct {
 	char* var;
-	expr_t value;
-} let_t;
+	Expr value;
+} LetStmt;
 
-struct stmt_t {
+struct Stmt {
 	enum {
 		STMT_EXPR,
 		STMT_BLOCK,
@@ -60,18 +60,18 @@ struct stmt_t {
 		STMT_LET
 	} type;
 	union {
-		expr_t expr;
-		block_t block;
-		if_t if_stmt;
-		let_t let;
+		Expr expr;
+		BlockStmt block;
+		IfStmt if_stmt;
+		LetStmt let;
 	} data;
 };
 
-expr_t parse_expr(lexer_t* lexer);
-stmt_t parse_stmt(lexer_t* lexer);
-void print_expr(expr_t* expr);
-void print_stmt(stmt_t* stmt);
-void free_expr(expr_t* expr);
-void free_stmt(stmt_t* stmt);
+Expr parse_expr(Lexer* lexer);
+Stmt parse_stmt(Lexer* lexer);
+void print_expr(Expr* expr);
+void print_stmt(Stmt* stmt);
+void free_expr(Expr* expr);
+void free_stmt(Stmt* stmt);
 
 #endif

@@ -10,20 +10,20 @@
 #define TOKEN_WHILE	6
 #define TOKEN_LET	7
 
-typedef struct lexer_t lexer_t;
+typedef struct Lexer Lexer;
 
-struct lexer_t {
+struct Lexer {
 	FILE* f;
-	lexer_t* next;
+	Lexer* next;
 	char peek_type;
 	char peek_data[256];
 };
 
 extern const char *token_names[];
 
-lexer_t lexer_new(FILE* f);
-char lex(lexer_t* lexer, char* buffer, int size);
-void unlex(lexer_t* lexer, char type, char* buffer);
-char peek(lexer_t* lexer);
+Lexer lexer_new(FILE* f);
+char lex(Lexer* lexer, char* buffer, int size);
+void unlex(Lexer* lexer, char type, char* buffer);
+char peek(Lexer* lexer);
 
 #endif

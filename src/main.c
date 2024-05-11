@@ -12,13 +12,13 @@ int main(int argc, char** argv) {
 	if (argc == 2)
 		name = argv[1];
 	FILE* f = fopen(name, "r");
-	lexer_t lexer = lexer_new(f);
-	env_t globals = globals_new();
+	Lexer lexer = lexer_new(f);
+	Scope globals = globals_new();
 	bool error = false;
 	globals.globals = &globals;
 	while (peek(&lexer) != TOKEN_EOF && !error) {
-		stmt_t stmt = parse_stmt(&lexer);
-		obj_t value = GET(run_stmt(&stmt, &globals));
+		Stmt stmt = parse_stmt(&lexer);
+		Obj value = GET(run_stmt(&stmt, &globals));
 		if (IS_ERROR(value.type)) {
 			char* s = obj_to_str(REF(value));
 			fprintf(stderr, "uncaught error: %s\n", s);
@@ -28,6 +28,6 @@ int main(int argc, char** argv) {
 		free_stmt(&stmt);
 		obj_free(MOVE(value));
 	}
-	env_free(&globals);
+	scope_free(&globals);
 	fclose(f);
 }

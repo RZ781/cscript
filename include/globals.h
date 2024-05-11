@@ -1,7 +1,7 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
-#include "env.h"
+#include "scope.h"
 
-env_t globals_new(void);
+Scope globals_new(void);
 
 #endif

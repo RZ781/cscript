@@ -8,7 +8,7 @@ const char unops[] = "+-~!";
 
 static char temp[256];
 
-void eat(lexer_t* lexer, char c, char* buffer, int size) {
+void eat(Lexer* lexer, char c, char* buffer, int size) {
 	if (c != lex(lexer, buffer, size)) {
 		const char* token_name;
 		if (c < ' ') {
@@ -20,12 +20,12 @@ void eat(lexer_t* lexer, char c, char* buffer, int size) {
 			token_name = s;
 		}
 		fprintf(stderr, "expected %s, got %s\n", token_name, buffer);
-		exit(-1);
+		abort();
 	}
 }
 
-expr_t parse_expr_inner(lexer_t* lexer) {
-	expr_t e;
+Expr parse_expr_inner(Lexer* lexer) {
+	Expr e;
 	char* s = malloc(256);
 	char type = lex(lexer, s, 256);
 	if (type == TOKEN_INT) {
@@ -39,9 +39,9 @@ expr_t parse_expr_inner(lexer_t* lexer) {
 		e.data.s = s;
 		while (peek(lexer) == '=') {
 			eat(lexer, '=', temp, 256);
-			op_t op;
-			op.l = malloc(sizeof(expr_t));
-			op.r = malloc(sizeof(expr_t));
+			OpExpr op;
+			op.l = malloc(sizeof(Expr));
+			op.r = malloc(sizeof(Expr));
 			*op.l = e;
 			*op.r = parse_expr(lexer);
 			e.type = EXPR_ASSIGN;
@@ -50,33 +50,33 @@ expr_t parse_expr_inner(lexer_t* lexer) {
 	} else {
 		//eat(lexer, -1, temp, 256);
 		fprintf(stderr, "unexpected token %s\n", s);
-		exit(-1);
+		abort();
 	}
 	return e;
 }
 
-expr_t parse_expr_priority(lexer_t* lexer, int priority) {
+Expr parse_expr_priority(Lexer* lexer, int priority) {
 	if (priority == 0) {
 		return parse_expr_inner(lexer);
 	} else if (priority == 1) {
-		expr_t e = parse_expr_priority(lexer, priority-1);
+		Expr e = parse_expr_priority(lexer, priority-1);
 		while (peek(lexer) == '(') {
 			eat(lexer, '(', temp, 256);
 			int cap = 4;
 			int size = 0;
-			expr_t* args = malloc(cap * sizeof(expr_t));
+			Expr* args = malloc(cap * sizeof(Expr));
 			while (peek(lexer) != ')') {
 				if (cap == size) {
 					cap *= 2;
-					args = realloc(args, cap * sizeof(expr_t));
+					args = realloc(args, cap * sizeof(Expr));
 				}
 				args[size++] = parse_expr(lexer);
 				if (peek(lexer) != ')')
 					eat(lexer, ',', temp, 256);
 			}
 			eat(lexer, ')', temp, 256);
-			func_call_t call;
-			call.f = malloc(sizeof(expr_t));
+			FuncCallExpr call;
+			call.f = malloc(sizeof(Expr));
 			*call.f = e;
 			call.n_args = size;
 			call.args = args;
@@ -98,54 +98,54 @@ expr_t parse_expr_priority(lexer_t* lexer, int priority) {
 			unlex(lexer, type, temp);
 			return parse_expr_priority(lexer, priority-1);
 		}
-		op_t op;
+		OpExpr op;
 		op.op = c;
-		op.l = malloc(sizeof(expr_t));
+		op.l = malloc(sizeof(Expr));
 		op.r = NULL;
 		*op.l = parse_expr_priority(lexer, priority);
-		expr_t e;
+		Expr e;
 		e.type = EXPR_OP;
 		e.data.op = op;
 		return e;
 	}
-	return (expr_t) {.type=0};
+	return (Expr) {.type=0};
 }
 
-expr_t parse_expr(lexer_t* lexer) {
+Expr parse_expr(Lexer* lexer) {
 	return parse_expr_priority(lexer, 2);
 }
 
-stmt_t parse_stmt(lexer_t* lexer) {
-	stmt_t stmt;
+Stmt parse_stmt(Lexer* lexer) {
+	Stmt stmt;
 	if (peek(lexer) == '{') {
 		eat(lexer, '{', temp, 256);
 		int cap = 4;
 		int size = 0;
-		stmt_t* stmts = malloc(cap * sizeof(stmt_t));
+		Stmt* stmts = malloc(cap * sizeof(Stmt));
 		while (peek(lexer) != '}') {
 			if (cap == size) {
 				cap *= 2;
-				stmts = realloc(stmts, cap * sizeof(stmt_t));
+				stmts = realloc(stmts, cap * sizeof(Stmt));
 			}
 			stmts[size++] = parse_stmt(lexer);
 		}
 		eat(lexer, '}', temp, 256);
-		block_t block;
+		BlockStmt block;
 		block.n_stmts = size;
 		block.stmts = stmts;
 		stmt.type = STMT_BLOCK;
 		stmt.data.block = block;
 	} else if (peek(lexer) == TOKEN_IF) {
-		if_t if_stmt;
+		IfStmt if_stmt;
 		eat(lexer, TOKEN_IF, temp, 256);
 		eat(lexer, '(', temp, 256);
 		if_stmt.cond = parse_expr(lexer);
 		eat(lexer, ')', temp, 256);
-		if_stmt.if_path = malloc(sizeof(stmt_t));
+		if_stmt.if_path = malloc(sizeof(Stmt));
 		*if_stmt.if_path = parse_stmt(lexer);
 		if (peek(lexer) == TOKEN_ELSE) {
 			eat(lexer, TOKEN_ELSE, temp, 256);
-			if_stmt.else_path = malloc(sizeof(stmt_t));
+			if_stmt.else_path = malloc(sizeof(Stmt));
 			*if_stmt.else_path = parse_stmt(lexer);
 		} else {
 			if_stmt.else_path = NULL;
@@ -153,18 +153,18 @@ stmt_t parse_stmt(lexer_t* lexer) {
 		stmt.type = STMT_IF;
 		stmt.data.if_stmt = if_stmt;
 	} else if (peek(lexer) == TOKEN_WHILE) {
-		if_t if_stmt;
+		IfStmt if_stmt;
 		eat(lexer, TOKEN_WHILE, temp, 256);
 		eat(lexer, '(', temp, 256);
 		if_stmt.cond = parse_expr(lexer);
 		eat(lexer, ')', temp, 256);
-		if_stmt.if_path = malloc(sizeof(stmt_t));
+		if_stmt.if_path = malloc(sizeof(Stmt));
 		*if_stmt.if_path = parse_stmt(lexer);
 		if_stmt.else_path = NULL;
 		stmt.type = STMT_WHILE;
 		stmt.data.if_stmt = if_stmt;
 	} else if (peek(lexer) == TOKEN_LET) {
-		let_t let;
+		LetStmt let;
 		eat(lexer, TOKEN_LET, temp, 256);
 		let.var = malloc(256);
 		eat(lexer, TOKEN_ID, let.var, 256);
@@ -181,7 +181,7 @@ stmt_t parse_stmt(lexer_t* lexer) {
 	return stmt;
 }
 
-void print_expr(expr_t* e) {
+void print_expr(Expr* e) {
 	switch (e->type) {
 		case EXPR_INT:
 			printf("int(%s)", e->data.s);
@@ -204,11 +204,11 @@ void print_expr(expr_t* e) {
 			break;
 		default:
 			fprintf(stderr, "unknown expression in print_expr\n");
-			exit(-1);
+			abort();
 	}
 }
 
-void print_stmt(stmt_t* stmt) {
+void print_stmt(Stmt* stmt) {
 	switch (stmt->type) {
 		case STMT_EXPR:
 			print_expr(&stmt->data.expr);
@@ -234,11 +234,11 @@ void print_stmt(stmt_t* stmt) {
 			break;
 		default:
 			fprintf(stderr, "unknown statement in print_stmt\n");
-			exit(-1);
+			abort();
 	}
 }
 
-void free_expr(expr_t* e) {
+void free_expr(Expr* e) {
 	switch (e->type) {
 		case EXPR_STR: case EXPR_INT: case EXPR_VAR:
 			free(e->data.s);
@@ -260,11 +260,11 @@ void free_expr(expr_t* e) {
 			break;
 		default:
 			fprintf(stderr, "unknown expression in free_expr\n");
-			exit(-1);
+			abort();
 	}
 }
 
-void free_stmt(stmt_t* stmt) {
+void free_stmt(Stmt* stmt) {
 	switch (stmt->type) {
 		case STMT_EXPR:
 			free_expr(&stmt->data.expr);
@@ -276,7 +276,7 @@ void free_stmt(stmt_t* stmt) {
 			break;
 		case STMT_IF: case STMT_WHILE:
 		{
-			if_t* if_stmt = &stmt->data.if_stmt;
+			IfStmt* if_stmt = &stmt->data.if_stmt;
 			free_expr(&if_stmt->cond);
 			free_stmt(if_stmt->if_path);
 			free(if_stmt->if_path);
@@ -288,13 +288,13 @@ void free_stmt(stmt_t* stmt) {
 		}
 		case STMT_LET:
 		{
-			let_t* let = &stmt->data.let;
+			LetStmt* let = &stmt->data.let;
 			free(let->var);
 			free_expr(&let->value);
 			break;
 		}
 		default:
 			fprintf(stderr, "unknown statement in free_stmt\n");
-			exit(-1);
+			abort();
 	}
 }
